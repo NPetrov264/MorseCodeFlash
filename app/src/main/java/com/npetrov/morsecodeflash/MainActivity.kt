@@ -12,6 +12,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -31,6 +32,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var seekBarDuration: SeekBar
     private lateinit var tvDurationLength: TextView
     private lateinit var playButton: ImageButton
+    private lateinit var sosButton: ImageButton
+    private lateinit var ivFlashLight: ImageView
 
     private val morseCodeMap = mapOf(
         'A' to "•–",    'B' to "–•••",  'C' to "–•–•",  'D' to "–••",   'E' to "•",
@@ -40,18 +43,19 @@ class MainActivity : AppCompatActivity() {
         'U' to "••–",   'V' to "•••–",  'W' to "•––",   'X' to "–••–",  'Y' to "–•––",
         'Z' to "––••",  '1' to "•––––", '2' to "••–––", '3' to "•••––", '4' to "••••–",
         '5' to "•••••", '6' to "–••••", '7' to "––•••", '8' to "–––••", '9' to "––––•",
-        '0' to "–––––", ' ' to " "
+        '0' to "–––––", ' ' to "  "
     )
     private var morseCode = " "
     private var isFlashlightOn = false
     private var isPlaying = false
+    private var isRepeating = false
     private val handler = Handler(Looper.getMainLooper())
 
 
     fun convertTextToMorse(text: String): String {
         val code = text.uppercase().map {
             morseCodeMap[it] ?: "" // If character not found, use an empty string
-        }.joinToString("   ") // Join each Morse code letter with 3 spaces
+        }.joinToString("  ") // Join each Morse code letter with 2 spaces
         return code
     }
 
@@ -78,34 +82,41 @@ class MainActivity : AppCompatActivity() {
 
     private fun sendMorseCode() {
         var delay = pulseDuration.toLong()
+        playButton.setImageResource(android.R.drawable.ic_media_pause)
         for (symbol in morseCode) {
+            if (!isPlaying) break // Stop the transmission if requested
             when (symbol) {
                 '•' -> {
                     // Flash for dot 1 x pulseDuration
-                    handler.post({ toggleFlashlight(true) })
+                    handler.postDelayed({ toggleFlashlight(true) }, delay)
+                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_on) }, delay)
                     Log.d(TAG, "Flashlight on")
-                    Thread.sleep(delay)
-                    handler.post({ toggleFlashlight(false) })
+                    delay += pulseDuration
+                    handler.postDelayed({ toggleFlashlight(false) }, delay)
+                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_off) }, delay)
                     Log.d(TAG, "Flashlight off")
+                    delay += pulseDuration
                 }
                 '–' -> {
                     // Flash for dash 3 x pulseDuration
-                    handler.post({ toggleFlashlight(true) })
+                    handler.postDelayed({ toggleFlashlight(true) }, delay)
+                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_on) }, delay)
                     Log.d(TAG, "Flashlight on")
-                    Thread.sleep(3*delay)
-                    handler.post({ toggleFlashlight(false) })
+                    delay += 3*pulseDuration
+                    handler.postDelayed({ toggleFlashlight(false) }, delay)
+                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_off) }, delay)
                     Log.d(TAG, "Flashlight off")
+                    delay += pulseDuration
                 }
                 ' ' -> {
-                    // delay for empty 1 x pulseDuration
-                    Thread.sleep(delay)
-                    Log.d(TAG, "Flashlight off")
+                    // delay for space 1 x pulseDuration
+                    delay += pulseDuration
                 }
             }
         }
 
-        playButton.setImageResource(android.R.drawable.ic_media_play)
-        isPlaying = false
+        handler.postDelayed({playButton.setImageResource(android.R.drawable.ic_media_play) }, delay)
+        handler.postDelayed({isPlaying = false }, delay)
     }
 
     @SuppressLint("SetTextI18n")
@@ -124,6 +135,8 @@ class MainActivity : AppCompatActivity() {
         seekBarDuration = findViewById(R.id.seekBarDuration)
         tvDurationLength = findViewById(R.id.tvDurationLength)
         playButton = findViewById(R.id.playButton)
+        sosButton = findViewById(R.id.sosButton)
+        ivFlashLight = findViewById(R.id.ivFlashLight)
 
         tvDurationLength.text = "${INITIAL_DURATION}ms"
 
@@ -156,13 +169,24 @@ class MainActivity : AppCompatActivity() {
 
         playButton.setOnClickListener {
             if (!isPlaying) {
-                playButton.setImageResource(android.R.drawable.ic_media_pause)
                 isPlaying = true
-                handler.post({sendMorseCode()})
+                sendMorseCode()
             } else {
-                playButton.setImageResource(android.R.drawable.ic_media_play)
                 isPlaying = false
+                handler.removeCallbacksAndMessages(null) // Cancel all scheduled tasks
+                handler.post { toggleFlashlight(false) }
+                playButton.setImageResource(android.R.drawable.ic_media_play)
             }
         }
+
+        sosButton.setOnClickListener {
+            handler.removeCallbacksAndMessages(null) // Cancel all scheduled tasks
+            handler.post { toggleFlashlight(false) }
+            textInputBox.setText("SOS")
+            morseCode = "•••  –––  •••"
+            isPlaying = true
+            sendMorseCode()
+        }
+
     }
 }
