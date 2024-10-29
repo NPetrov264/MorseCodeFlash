@@ -2,4 +2,13 @@
 
 An android app that converts your message into morse code and then transmits it via flashlight.
 
-![Preview](app/src/main/res/drawable/MorseCodeFlashScreenshot.png)
+
+## Functions
+
+- Convert text into morse code
+- Transmit the code as a flashlight signal
+- Loop your messages
+
+
+![Preview](app/src/main/res/drawable/morse_code_flash_screenshot.png)
+
