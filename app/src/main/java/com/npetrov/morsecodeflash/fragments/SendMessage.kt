@@ -17,6 +17,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
+import android.widget.Switch
 import android.widget.TextView
 import com.npetrov.morsecodeflash.R
 
@@ -24,7 +25,7 @@ private const val TAG = "MainActivity"
 private const val INITIAL_DURATION = 200
 
 class SendMessage : Fragment() {
-    private var pulseDuration = 200
+    private var pulseDuration = INITIAL_DURATION
 
     private lateinit var tvTopLabel: TextView
     private lateinit var textInputBox: EditText
@@ -32,6 +33,7 @@ class SendMessage : Fragment() {
     private lateinit var seekBarDuration: SeekBar
     private lateinit var tvDurationLength: TextView
     private lateinit var playButton: ImageButton
+    private lateinit var switchRepeat: Switch
     private lateinit var sosButton: ImageButton
     private lateinit var ivFlashLight: ImageView
 
@@ -80,45 +82,60 @@ class SendMessage : Fragment() {
         }
     }
 
-    private fun sendMorseCode() {
+    private fun sendMorseCode(isFirstRun: Boolean) {
         var delay = pulseDuration.toLong()
-        playButton.setImageResource(android.R.drawable.ic_media_pause)
-        for (symbol in morseCode) {
-            if (!isPlaying) break // Stop the transmission if requested
-            when (symbol) {
-                '•' -> {
-                    // Flash for dot 1 x pulseDuration
-                    handler.postDelayed({ toggleFlashlight(true) }, delay)
-                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_on) }, delay)
-                    Log.d(TAG, "Flashlight on")
-                    delay += pulseDuration
-                    handler.postDelayed({ toggleFlashlight(false) }, delay)
-                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_off) }, delay)
-                    Log.d(TAG, "Flashlight off")
-                    delay += pulseDuration
-                }
-                '–' -> {
-                    // Flash for dash 3 x pulseDuration
-                    handler.postDelayed({ toggleFlashlight(true) }, delay)
-                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_on) }, delay)
-                    Log.d(TAG, "Flashlight on")
-                    delay += 3*pulseDuration
-                    handler.postDelayed({ toggleFlashlight(false) }, delay)
-                    handler.postDelayed({ ivFlashLight.setImageResource(R.drawable.flashlight_off) }, delay)
-                    Log.d(TAG, "Flashlight off")
-                    delay += pulseDuration
-                }
-                ' ' -> {
-                    // delay for space 1 x pulseDuration
-                    delay += pulseDuration
+        if (isFirstRun || isRepeating) {
+            for (symbol in morseCode) {
+                when (symbol) {
+                    '•' -> {
+                        // Flash for dot 1 x pulseDuration
+                        handler.postDelayed({ toggleFlashlight(true) }, delay)
+                        handler.postDelayed(
+                            { ivFlashLight.setImageResource(R.drawable.flashlight_on) },
+                            delay
+                        )
+                        Log.d(TAG, "Flashlight on")
+                        delay += pulseDuration
+                        handler.postDelayed({ toggleFlashlight(false) }, delay)
+                        handler.postDelayed(
+                            { ivFlashLight.setImageResource(R.drawable.flashlight_off) },
+                            delay
+                        )
+                        Log.d(TAG, "Flashlight off")
+                        delay += pulseDuration
+                    }
+
+                    '–' -> {
+                        // Flash for dash 3 x pulseDuration
+                        handler.postDelayed({ toggleFlashlight(true) }, delay)
+                        handler.postDelayed(
+                            { ivFlashLight.setImageResource(R.drawable.flashlight_on) },
+                            delay
+                        )
+                        Log.d(TAG, "Flashlight on")
+                        delay += 3 * pulseDuration
+                        handler.postDelayed({ toggleFlashlight(false) }, delay)
+                        handler.postDelayed(
+                            { ivFlashLight.setImageResource(R.drawable.flashlight_off) },
+                            delay
+                        )
+                        Log.d(TAG, "Flashlight off")
+                        delay += pulseDuration
+                    }
+
+                    ' ' -> {
+                        // delay for space 1 x pulseDuration
+                        delay += pulseDuration
+                    }
                 }
             }
+            handler.postDelayed({sendMorseCode(false)}, delay + 10*pulseDuration) // add delay between repeats
+            if ( !isRepeating) {
+                handler.postDelayed({ playButton.setImageResource(android.R.drawable.ic_media_play) }, delay)
+                handler.postDelayed({ isPlaying = false }, delay)
+            }
         }
-
-        handler.postDelayed({playButton.setImageResource(android.R.drawable.ic_media_play) }, delay)
-        handler.postDelayed({isPlaying = false }, delay)
     }
-
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -137,6 +154,7 @@ class SendMessage : Fragment() {
         seekBarDuration = view.findViewById(R.id.seekBarDuration)
         tvDurationLength = view.findViewById(R.id.tvDurationLength)
         playButton = view.findViewById(R.id.playButton)
+        switchRepeat = view.findViewById(R.id.switchRepeat)
         sosButton = view.findViewById(R.id.sosButton)
         ivFlashLight = view.findViewById(R.id.ivFlashLight)
 
@@ -145,7 +163,6 @@ class SendMessage : Fragment() {
         seekBarDuration.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
 
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                //Log.i(TAG, "onProgressChanged $progress")
                 pulseDuration = INITIAL_DURATION + progress
                 tvDurationLength.text = "${pulseDuration}ms"
             }
@@ -172,11 +189,12 @@ class SendMessage : Fragment() {
         playButton.setOnClickListener {
             if (!isPlaying) {
                 isPlaying = true
-                sendMorseCode()
+                playButton.setImageResource(android.R.drawable.ic_media_pause)
+                sendMorseCode(true)
             } else {
-                isPlaying = false
                 handler.removeCallbacksAndMessages(null) // Cancel all scheduled tasks
-                handler.post { toggleFlashlight(false) }
+                handler.post { toggleFlashlight(false) } // turn off flashlight
+                isPlaying = false
                 playButton.setImageResource(android.R.drawable.ic_media_play)
             }
         }
@@ -187,8 +205,15 @@ class SendMessage : Fragment() {
             textInputBox.setText("SOS")
             morseCode = "•••  –––  •••"
             isPlaying = true
-            sendMorseCode()
+            playButton.setImageResource(android.R.drawable.ic_media_pause)
+            switchRepeat.setChecked(true)
+            sendMorseCode(true)
         }
+
+        switchRepeat.setOnCheckedChangeListener { _, isChecked ->
+            isRepeating = isChecked
+        }
+
     }
 
 }
