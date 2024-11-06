@@ -11,4 +11,5 @@ An android app that converts your message into morse code and then transmits it 
 
 
 ![Preview](app/src/main/res/drawable/morse_code_flash_screenshot.png)
+![Preview](app/src/main/res/drawable/morse_code_flash_screenshot2.png)
 
